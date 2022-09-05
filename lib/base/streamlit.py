@@ -2,6 +2,7 @@ __all__ = ['StreamLit']
 
 
 import functools as f
+import types
 import typing as t
 
 import streamlit as st
@@ -21,6 +22,10 @@ class StreamLit:
 
     def __getitem__(self, key: str) -> t.Callable:
         return getattr(st, key)
+
+    @property
+    def st(self) -> types.ModuleType:
+        return st
 
     @property
     def ret(self) -> t.Any:
