@@ -38,7 +38,6 @@ class StreamLit:
         elif isinstance(obj, image.seaborn.Figure):
             self.auto(obj.fig)
         elif isinstance(obj, image.plotly.Figure):
-            kwargs = {**kwargs}
             self._ret = st.plotly_chart(obj.fig, **kwargs)
         else:
             raise NotImplementedError
