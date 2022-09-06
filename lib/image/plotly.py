@@ -32,7 +32,16 @@ class Figure:
         self._surface(data.columns, data.index, data.values, **kwargs)
         return self
 
-    def add_surface_with_mesh(
+    def new_surface(self, data: pd.DataFrame, **kwargs: t.Any) -> 'Figure':
+        height, width = data.shape
+        x, y, Z = np.arange(width), np.arange(height), data.values
+        self._surface(x, y, Z, **kwargs)
+        return self.update_scenes(
+            xaxis={'ticktext': data.columns, 'tickvals': x},
+            yaxis={'ticktext': data.index, 'tickvals': y},
+        )
+
+    def new_surface_with_mesh(
         self,
         data: pd.DataFrame,
         scatter3d_kwargs: KwArgs = {}, surface_kwargs: KwArgs = {},
