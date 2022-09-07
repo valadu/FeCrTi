@@ -1,12 +1,14 @@
 __all__ = ['Part']
 
 
-from asyncio import constants
+import itertools as it
 import random
 import types
 import typing as t
 
 import pandas as pd
+import plotly.express as px
+import scipy as sp
 
 import data
 import lib
@@ -27,9 +29,11 @@ class Part:
     def meta(self) -> None:
         self.st.set_page_config(page_title='FeCrTi', page_icon='🌏')
 
-    def sidebar(self, steps: t.List[str]) -> str:
+    def sidebar(self, steps: t.Tuple[str, str, str]) -> str:
         with self.st.sidebar:
             self.st.markdown(f'<center><pre><code>{lib.__logo__}</code></pre></center>', unsafe_allow_html=True)
+            self.st.markdown('''
+            ''')
             with self.st.form(key='sidebar'):
                 step = self.st.radio('Which step do you want to take?', steps)
                 self.st.form_submit_button(label='Ready!')
@@ -50,7 +54,7 @@ class Part:
         with self.st.sidebar, self.st.form(key='data_visualization'):
             keys = self.st.multiselect('Which data do you want to visualize?', data.data.keys())
             self.st.form_submit_button(label='Reset data.')
-        names = [key.replace('_', ' ').capitalize() for key in keys]
+        names = list(map(self._rename, keys))
         dfs = [data.data[key] for key in keys]
         if len(keys) == 0:
             pass
@@ -66,14 +70,14 @@ class Part:
         with tabs[0]:
             self.st.dataframe(df)
         with tabs[1]:
-            level = self._level(f'data_visualization_with_one:1', 2, 64, 8)
+            level = self._slider(f'data_visualization_with_one:1', 2, 64, 8, 'Number of maximum levels:')
             self._st.auto(
                 lib.image.seaborn.Figure(figsize=(16, 12))
                     .heatmap_with_contour(df, level=level, contour_kwargs=D(colors='black'), heatmap_kwargs=D(cmap='YlGnBu'))
                     .set(title=name)
             )
         with tabs[2]:
-            level = self._level(f'data_visualization_with_one:2', 2, 64, 8)
+            level = self._slider(f'data_visualization_with_one:2', 2, 64, 8, 'Number of maximum levels:')
             self._st.auto(
                 lib.image.seaborn.Figure(figsize=(16, 12))
                     .heatmap_with_contourf(df, level=level)
@@ -91,17 +95,96 @@ class Part:
             )
 
     def data_visualization_with_more(self, keys: t.List[str], names: t.List[str], dfs: t.List[pd.DataFrame]) -> None:
-        expression = self._expression('data_visualization_with_more', ' + '.join(keys))
+        expression = self._expression('data_visualization_with_more', ' + '.join(map('norm.minmax({})'.format, keys)))
         variables = dict(zip(keys, dfs))
         self._namespace(Constant=scope.constants, Function=scope.functions, Variable=variables)
-        try:
-            ans = eval(expression, {}, {**scope.constants, **scope.functions, **variables})
-        except Exception as e:
-            self.st.error(f'**{e.__class__.__name__}**: {e}')
-            self.st.stop()
-        self.data_visualization_with_one(expression, expression, ans)
+        ans = self._eval(expression, variables)
+        if ans is not None:
+            self.data_visualization_with_one(expression, expression, ans)
 
-    def line_break(self, number: int) -> None:
+    def optimization(self, steps: t.Tuple[str, str]) -> None:
+        with self.st.sidebar, self.st.form(key='optimization'):
+            step = self.st.radio('Which data do you want to visualize?', steps)
+            self.st.form_submit_button(label='Ready!')
+        return step
+
+    def optimization_references(self) -> None:
+        self.st.markdown('''
+# Hello World!
+        ''')
+
+    def optimization_getstarted(self) -> None:
+        self._title_caption('Specify expressions to be maximized ✨', '')
+        with self.st.form(key='optimization_getstarted'):
+            expressions = [self.st.text_input(f'{axis}:', 'None') for axis in 'XYZ']
+            self.st.form_submit_button(label='Calculate the result.')
+        self._namespace(Constant=scope.constants, Function=scope.functions, Variable=data.data)
+        # Valid expression(s) and their/its answer(s)
+        valids = []
+        for expr in expressions:
+            ans = self._eval(expr, data.data)
+            if isinstance(ans, pd.DataFrame):
+                valids.append((expr, ans))
+        if len(valids) == 0:
+            self.st.error('Please specify one or more of $X$, $Y$, $Z$.')
+        elif len(valids) == 1:
+            color = self.st.color_picker('Pick a color that indicates maximum:', '#ffff00')
+            self.optimization_getstarted_one(*valids[0], color)
+        elif len(valids) == 2:
+            self.optimization_getstarted_two(*zip(*valids))
+        elif len(valids) == 3:
+            self.optimization_getstarted_three(*zip(*valids))
+
+    def optimization_getstarted_one(self, expr: str, ans: pd.DataFrame, color: str = '#ffff00') -> None:
+        maximum = ans.max().max()
+        func = lambda cell: f'background-color: {color}' if cell==maximum else ''
+        self.st.dataframe(ans.style.applymap(func))
+
+    def optimization_getstarted_two(
+        self,
+        expr_xy: t.Tuple[str, str],
+        ans_xy: t.Tuple[pd.DataFrame, pd.DataFrame],
+    ) -> None:
+        scale = self._slider(f'optimization_getstarted_two', 0, 16, 0, 'Scale of spline interpolation:')
+        xlabel, ylabel = expr_xy
+        xs, ys = ans_xy
+        xs_more = sp.ndimage.zoom(xs.values, scale)
+        ys_more = sp.ndimage.zoom(ys.values, scale)
+        data = {xlabel: [], ylabel: [], 'name': []}
+        for column, index in it.product(xs.columns, xs.index):
+            data[xlabel].append(xs[column][index])
+            data[ylabel].append(ys[column][index])
+            data['name'].append(f'{column}{index}')
+        fig = px.scatter(pd.DataFrame(data), x=xlabel, y=ylabel, color='name') \
+            .update_traces(marker=D(color='DeepSkyBlue', size=12)) \
+            .update_layout(showlegend=False) \
+            .add_scatter(x=xs_more.flatten(), y=ys_more.flatten(), mode='markers', opacity=0.5, marker=D(color='LightSkyBlue', size=9), hoverinfo='skip')
+        self.st.plotly_chart(fig)
+
+    def optimization_getstarted_three(
+        self,
+        expr_xyz: t.Tuple[str, str, str],
+        ans_xyz: t.Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+    ) -> None:
+        scale = self._slider(f'optimization_getstarted_two', 0, 9, 0, 'Scale of spline interpolation:')
+        xlabel, ylabel, zlabel = expr_xyz
+        xs, ys, zs = ans_xyz
+        xs_more = sp.ndimage.zoom(xs.values, scale)
+        ys_more = sp.ndimage.zoom(ys.values, scale)
+        zs_more = sp.ndimage.zoom(zs.values, scale)
+        data = {xlabel: [], ylabel: [], zlabel: [], 'name': []}
+        for column, index in it.product(xs.columns, xs.index):
+            data[xlabel].append(xs[column][index])
+            data[ylabel].append(ys[column][index])
+            data[zlabel].append(zs[column][index])
+            data['name'].append(f'{column}{index}')
+        fig = px.scatter_3d(pd.DataFrame(data), x=xlabel, y=ylabel, z=zlabel, color='name') \
+            .update_traces(marker=D(size=9)) \
+            .update_layout(showlegend=False) \
+            .add_scatter3d(x=xs_more.flatten(), y=ys_more.flatten(), z=zs_more.flatten(), mode='markers', opacity=0.5, marker=D(size=5), hoverinfo='skip')
+        self.st.plotly_chart(fig)
+
+    def _line_break(self, number: int) -> None:
         for _ in range(number):
             self.st.text('')
 
@@ -113,9 +196,9 @@ class Part:
         self.st.title(title)
         self.st.caption(caption)
 
-    def _level(self, key: str, min: int, max: int, value: int) -> int:
+    def _slider(self, key: str, min: int, max: int, value: int, text: str) -> int:
         with self.st.form(key=key):
-            level = self.st.slider('Number of maximum levels:', min, max, value)
+            level = self.st.slider(text, min, max, value)
             self.st.form_submit_button(label='Reset image.')
         return level
 
@@ -128,3 +211,15 @@ class Part:
     def _namespace(self, **kwargs: t.Any) -> None:
         with self.st.expander('View functions and variables available in current namespace.'):
             self.st.write(kwargs)
+
+    def _rename(self, text: str) -> str:
+        return text.replace('_', ' ').capitalize()
+
+    def _eval(self, expression: str, variables: t.Dict[str, pd.DataFrame] = data.data) -> t.Optional[pd.DataFrame]:
+        try:
+            ans = eval(expression, {}, {**scope.constants, **scope.functions, **variables})
+        except Exception as e:
+            self.st.error(f'**{e.__class__.__name__}**: {e}')
+            return None
+        else:
+            return ans

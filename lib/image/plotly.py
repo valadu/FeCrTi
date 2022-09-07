@@ -25,7 +25,7 @@ class Figure:
         return self._fig
 
     @property
-    def reet(self) -> t.Any:
+    def ret(self) -> t.Any:
         return self._ret
 
     def surface(self, data: pd.DataFrame, **kwargs: t.Any) -> 'Figure':

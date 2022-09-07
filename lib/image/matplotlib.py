@@ -29,8 +29,16 @@ class Figure:
     def fig(self) -> Figure:
         return self._fig
 
+    def annotate(self, x: float, y: float, text: str, **kwargs: t.Any) -> 'Figure':
+        self._ax.annotate(text, (x, y), **kwargs)
+        return self
+
     def plot(self, x: t.Any, y: t.Any, **kwargs: t.Any) -> 'Figure':
         self._ax.plot(x, y, **kwargs)
+        return self
+
+    def scatter(self, x: t.Any, y: t.Any, **kwargs: t.Any) -> 'Figure':
+        self._ax.scatter(x, y, **kwargs)
         return self
 
     def set(self, **kwargs: t.Any) -> 'Figure':
