@@ -21,17 +21,41 @@ def count(df: pd.DataFrame) -> float:
 def max(df: pd.DataFrame) -> float:
     return np.max(df.values)
 
+def maxs(*dfs: pd.DataFrame) -> pd.DataFrame:
+    assert len(dfs) > 0
+    ans = dfs[0].copy()
+    for df in dfs[1:]:
+        ans.clip(lower=df, inplace=True)
+    return ans
+
 def mean(df: pd.DataFrame) -> float:
     return np.mean(df.values)
 
+def means(*dfs: pd.DataFrame) -> pd.DataFrame:
+    return sums(*dfs) / len(dfs)
+
 def min(df: pd.DataFrame) -> float:
     return np.min(df.values)
+
+def mins(*dfs: pd.DataFrame) -> pd.DataFrame:
+    assert len(dfs) > 1
+    ans = dfs[0].copy()
+    for df in dfs[0].copy():
+        ans.clip(upper=df, inplace=True)
+    return ans
 
 def std(df: pd.DataFrame) -> float:
     return np.std(df.values)
 
 def sum(df: pd.DataFrame) -> float:
     return np.sum(df.values)
+
+def sums(*dfs: pd.DataFrame) -> pd.DataFrame:
+    assert len(dfs) > 0
+    ans = dfs[0].copy()
+    for df in dfs[1:]:
+        ans += df
+    return ans
 
 
 constants = {
@@ -41,6 +65,7 @@ functions = {
     # See above
     'norm': norm,
     'count': count, 'max': max, 'mean': mean, 'min': min, 'std': std, 'sum': sum,
+    'maxs': maxs, 'means': means, 'mins': mins, 'sums': sums,
     # Package: numpy
     ## Number-theoretic and representation functions
     'abs': np.abs, 'ceil': np.ceil, 'floor': np.floor,

@@ -66,14 +66,14 @@ class Part:
         with tabs[0]:
             self.st.dataframe(df)
         with tabs[1]:
-            level = self._level('data_visualization_with_one:1', 2, 64, 8)
+            level = self._level(f'data_visualization_with_one:1', 2, 64, 8)
             self._st.auto(
                 lib.image.seaborn.Figure(figsize=(16, 12))
                     .heatmap_with_contour(df, level=level, contour_kwargs=D(colors='black'), heatmap_kwargs=D(cmap='YlGnBu'))
                     .set(title=name)
             )
         with tabs[2]:
-            level = self._level('data_visualization_with_one:2', 2, 64, 8)
+            level = self._level(f'data_visualization_with_one:2', 2, 64, 8)
             self._st.auto(
                 lib.image.seaborn.Figure(figsize=(16, 12))
                     .heatmap_with_contourf(df, level=level)
@@ -91,16 +91,15 @@ class Part:
             )
 
     def data_visualization_with_more(self, keys: t.List[str], names: t.List[str], dfs: t.List[pd.DataFrame]) -> None:
-        expression, submitted = self._expression('data_visualization_with_more', ' + '.join(keys))
+        expression = self._expression('data_visualization_with_more', ' + '.join(keys))
         variables = dict(zip(keys, dfs))
         self._namespace(Constant=scope.constants, Function=scope.functions, Variable=variables)
-        if submitted:
-            try:
-                ans = eval(expression, {}, {**scope.constants, **scope.functions, **variables})
-            except Exception as e:
-                self.st.error(f'**{e.__class__.__name__}**: {e}')
-                self.st.stop()
-            self.data_visualization_with_one(expression, expression, ans)
+        try:
+            ans = eval(expression, {}, {**scope.constants, **scope.functions, **variables})
+        except Exception as e:
+            self.st.error(f'**{e.__class__.__name__}**: {e}')
+            self.st.stop()
+        self.data_visualization_with_one(expression, expression, ans)
 
     def line_break(self, number: int) -> None:
         for _ in range(number):
@@ -120,11 +119,11 @@ class Part:
             self.st.form_submit_button(label='Reset image.')
         return level
 
-    def _expression(self, key: str, default: str) -> t.Tuple[str, bool]:
+    def _expression(self, key: str, default: str) -> str:
         with self.st.form(key=key):
             expression = self.st.text_input('Expression </>', default)
-            submitted = self.st.form_submit_button(label='Calculate the result.')
-        return expression, submitted
+            self.st.form_submit_button(label='Calculate the result.')
+        return expression
 
     def _namespace(self, **kwargs: t.Any) -> None:
         with self.st.expander('View functions and variables available in current namespace.'):
