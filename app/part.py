@@ -6,12 +6,14 @@ import random
 import types
 import typing as t
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import scipy as sp
 
 import data
 import lib
+import model
 import scope
 
 
@@ -95,7 +97,7 @@ class Part:
             )
 
     def data_visualization_with_more(self, keys: t.List[str], names: t.List[str], dfs: t.List[pd.DataFrame]) -> None:
-        expression = self._expression('data_visualization_with_more', ' + '.join(map('norm.minmax({})'.format, keys)))
+        expression = self._expression('data_visualization_with_more', ' + '.join(keys))
         variables = dict(zip(keys, dfs))
         self._namespace(Constant=scope.constants, Function=scope.functions, Variable=variables)
         ans = self._eval(expression, variables)
@@ -109,9 +111,29 @@ class Part:
         return step
 
     def optimization_references(self) -> None:
-        self.st.markdown('''
-# Hello World!
-        ''')
+        tabs = self.st.tabs(['References', 'Simple Schematic', 'Real-life Example'])
+        with tabs[0]:
+            self.st.markdown('''
+### References
+- [多目标优化 - 机器之心](https://www.jiqizhixin.com/graph/technologies/cf8932be-519a-4fd9-84f9-c6ffa997a554)
+- [帕累托效率 - 维基百科](https://zh.wikipedia.org/wiki/帕累托效率)
+            ''')
+        with tabs[1]:
+            weight = self.st.slider('Weight (ω):', 0.0, 5.0, 1.0)
+            is_pareto_frontier = self.st.checkbox('Pareto Frontier', False)
+            #
+            o = model.Oval(4.0, 3.0)
+            xs_rand, ys_rand = o.random(512, 0)
+            xs_line = np.linspace(0.0, 5.0, 100)
+            fig = px.scatter(x=xs_rand, y=ys_rand) \
+                .add_scatter(x=xs_line, y=o.tangent(-weight)(xs_line), name=f'y + {weight:.03f}x') \
+                .update_layout(xaxis=dict(range=[0, 5]), yaxis=dict(range=[0, 5]))
+            if is_pareto_frontier:
+                xs_pareto = np.linspace(0.0, 4.0, 100)
+                fig.add_scatter(x=xs_pareto, y=o.y(xs_pareto), name='Pareto Frontier')
+            self.st.plotly_chart(fig)
+        with tabs[2]:
+            self.st.image('static/mv.png')
 
     def optimization_getstarted(self) -> None:
         self._title_caption('Specify expressions to be maximized ✨', '')
